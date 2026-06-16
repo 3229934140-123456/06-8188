@@ -13,8 +13,8 @@ import type {
 
 export const mockUsers: User[] = [
   { id: 'u1', name: '系统管理员', role: 'admin' },
-  { id: 'u2', name: '王老板', role: 'merchant' },
-  { id: 'u3', name: '张骑手', role: 'rider' },
+  { id: 'u2', name: '王老板', role: 'merchant', merchantId: 'm5' },
+  { id: 'u3', name: '张骑手', role: 'rider', riderId: 'r3' },
 ]
 
 export const merchants: Merchant[] = [
@@ -211,6 +211,7 @@ export const orders: Order[] = [
     merchantName: '川香阁川菜馆',
     userAddress: '阳光小区3栋501',
     userPhone: '13700137001',
+    userPosition: { x: -15, y: 0, z: -35 },
     status: 'delivering',
     createdAt: '2024-01-15 12:30:00',
     estimatedTime: 35,
@@ -230,6 +231,7 @@ export const orders: Order[] = [
     merchantName: '老北京炸酱面',
     userAddress: '金色家园1栋203',
     userPhone: '13700137002',
+    userPosition: { x: -35, y: 0, z: 35 },
     status: 'delivering',
     createdAt: '2024-01-15 12:35:00',
     estimatedTime: 25,
@@ -245,6 +247,7 @@ export const orders: Order[] = [
     merchantName: '意式披萨屋',
     userAddress: '翠湖天地5栋1002',
     userPhone: '13700137003',
+    userPosition: { x: -45, y: 0, z: 25 },
     status: 'delivering',
     createdAt: '2024-01-15 12:25:00',
     estimatedTime: 45,
@@ -263,6 +266,7 @@ export const orders: Order[] = [
     merchantName: '湘菜馆',
     userAddress: '万达广场B座1508',
     userPhone: '13700137004',
+    userPosition: { x: 20, y: 0, z: -25 },
     status: 'delivering',
     createdAt: '2024-01-15 12:40:00',
     estimatedTime: 30,
@@ -281,6 +285,7 @@ export const orders: Order[] = [
     merchantName: '粤味茶餐厅',
     userAddress: '中环广场A座805',
     userPhone: '13700137005',
+    userPosition: { x: 30, y: 0, z: 5 },
     status: 'pending',
     createdAt: '2024-01-15 12:45:00',
     estimatedTime: 40,
@@ -297,6 +302,7 @@ export const orders: Order[] = [
     merchantName: '甜品工坊',
     userAddress: '湖畔花园2栋302',
     userPhone: '13700137006',
+    userPosition: { x: 0, y: 0, z: 0 },
     status: 'locker',
     createdAt: '2024-01-15 11:50:00',
     estimatedTime: 20,
@@ -398,9 +404,9 @@ export const incidents: FoodSafetyIncident[] = [
     type: 'foreign_object',
     level: 'serious',
     detectedAt: '2024-01-15 10:30:00',
-    status: 'rectifying',
+    status: 'reviewing',
     description: '后厨操作台检测到疑似毛发异物',
-    rectifyDescription: '已清洁操作台并更换厨师帽',
+    rectifyDescription: '已清洁操作台并更换厨师帽，加强后厨卫生管理制度',
   },
   {
     id: 'inc2',
@@ -430,10 +436,9 @@ export const incidents: FoodSafetyIncident[] = [
     type: 'foreign_object',
     level: 'critical',
     detectedAt: '2024-01-14 14:20:00',
-    status: 'resolved',
+    status: 'rectifying',
     description: '食材中检测到塑料碎片',
-    rectifyDescription: '已全部更换食材供应商，加强验收检查',
-    reviewComment: '整改认真，通过审核',
+    reviewComment: '整改措施不够彻底，需要重新整改',
   },
 ]
 

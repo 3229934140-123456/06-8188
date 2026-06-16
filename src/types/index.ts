@@ -5,6 +5,8 @@ export interface User {
   name: string
   role: UserRole
   avatar?: string
+  merchantId?: string
+  riderId?: string
 }
 
 export interface LoginLog {
@@ -74,6 +76,7 @@ export interface Order {
   merchantName: string
   userAddress: string
   userPhone: string
+  userPosition: Position
   status: OrderStatus
   createdAt: string
   estimatedTime: number

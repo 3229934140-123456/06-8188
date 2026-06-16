@@ -48,7 +48,9 @@ export function FoodSafetyModal() {
   }
 
   const filteredIncidents = role === 'merchant'
-    ? incidents.filter((i) => i.merchantId === currentUser?.id)
+    ? incidents.filter((i) => i.merchantId === currentUser?.merchantId)
+    : role === 'rider'
+    ? incidents.filter((i) => i.status === 'resolved')
     : incidents
 
   const currentIncident = filteredIncidents.find((i) => i.id === selectedIncident) || filteredIncidents[0]

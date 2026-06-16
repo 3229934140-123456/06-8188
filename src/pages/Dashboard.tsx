@@ -324,13 +324,15 @@ export function Dashboard() {
               >
                 关闭
               </button>
-              <button
-                onClick={handleExport}
-                className="px-4 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors border border-emerald-500/50 flex items-center gap-2"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                导出Excel
-              </button>
+              {(currentUser?.role === 'admin' || currentUser?.role === 'merchant') && (
+                <button
+                  onClick={handleExport}
+                  className="px-4 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors border border-emerald-500/50 flex items-center gap-2"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  导出Excel
+                </button>
+              )}
             </div>
           </div>
         </div>

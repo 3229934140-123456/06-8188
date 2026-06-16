@@ -107,6 +107,7 @@ interface AppState {
   selectedRiderId: string | null
   selectedLockerId: string | null
   activeRoute: RoutePoint[] | null
+  originalRoute: RoutePoint[] | null
   isDetourRoute: boolean
   detourSuggestion: string | null
   currentTime: string
@@ -152,6 +153,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedRiderId: null,
   selectedLockerId: null,
   activeRoute: null,
+  originalRoute: null,
   isDetourRoute: false,
   detourSuggestion: null,
   currentTime: new Date().toLocaleTimeString('zh-CN'),
@@ -177,22 +179,39 @@ export const useAppStore = create<AppState>((set, get) => ({
       const merchant = get().merchants.find((m) => m.id === id)
       if (!merchant) return
 
+      const order = get().orders.find((o) => o.merchantId === id && (o.status === 'delivering' || o.status === 'pending'))
+      const userDest = order?.userPosition || {
+        x: merchant.position.x + 15,
+        y: 0,
+        z: merchant.position.z + 10,
+      }
+
       const riders = get().riders
-      const idleRiders = riders.filter((r) => r.status === 'idle')
-      if (idleRiders.length === 0) return
+      const activeRider = order?.riderId
+        ? riders.find((r) => r.id === order.riderId)
+        : null
 
-      const bestRider = idleRiders.reduce((best, r) => {
-        const d = distance2D(r.position, merchant.position)
-        const bestD = distance2D(best.position, merchant.position)
-        return d < bestD ? r : best
-      })
+      let bestRider: Rider | null = null
 
-      const nearestLocker = findNearestLocker(merchant.position, get().lockers)
+      if (activeRider) {
+        bestRider = activeRider
+      } else {
+        const idleRiders = riders.filter((r) => r.status === 'idle')
+        if (idleRiders.length > 0) {
+          bestRider = idleRiders.reduce((best, r) => {
+            const d = distance2D(r.position, merchant.position)
+            const bestD = distance2D(best.position, merchant.position)
+            return d < bestD ? r : best
+          })
+        }
+      }
+
+      if (!bestRider) return
 
       const route: RoutePoint[] = [
         { x: bestRider.position.x, z: bestRider.position.z },
         { x: merchant.position.x, z: merchant.position.z },
-        { x: nearestLocker.position.x, z: nearestLocker.position.z },
+        { x: userDest.x, z: userDest.z },
       ]
 
       const riderArea = isPointInRestricted(bestRider.position.x, bestRider.position.z, get().restrictedAreas)
@@ -200,7 +219,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       let isDetour = false
 
       if (riderArea) {
-        detourSuggestion = `骑手${bestRider.name}当前位于「${riderArea.name}」限行区域内，建议从${riderArea.center.x > 0 ? '西侧' : '东侧'}绕行至${merchant.name}`
+        detourSuggestion = `骑手${bestRider.name}当前位于「${riderArea.name}」限行区域内，建议从${riderArea.center.x > 0 ? '西侧科技路' : '东侧解放路'}绕行至${merchant.name}`
         isDetour = true
       }
 
@@ -209,7 +228,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         detourSuggestion = `商家${merchant.name}位于「${merchantArea.name}」限行区域边缘，建议骑手从外围道路接近`
       }
 
-      set({ activeRoute: route, detourSuggestion, isDetourRoute: isDetour })
+      set({
+        activeRoute: route,
+        detourSuggestion,
+        isDetourRoute: isDetour,
+        selectedRiderId: bestRider.id,
+        originalRoute: route,
+      })
     }
   },
 
@@ -223,12 +248,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       const merchant = get().merchants.find((m) => m.id === order?.merchantId)
       if (!merchant) return
 
-      const nearestLocker = findNearestLocker(merchant.position, get().lockers)
+      const userDest = order?.userPosition || {
+        x: merchant.position.x + 15,
+        y: 0,
+        z: merchant.position.z + 10,
+      }
 
       const route: RoutePoint[] = [
         { x: rider.position.x, z: rider.position.z },
         { x: merchant.position.x, z: merchant.position.z },
-        { x: nearestLocker.position.x, z: nearestLocker.position.z },
+        { x: userDest.x, z: userDest.z },
       ]
 
       let detourSuggestion: string | null = null
@@ -242,7 +271,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
 
-      set({ activeRoute: route, detourSuggestion, isDetourRoute: isDetour })
+      set({ activeRoute: route, originalRoute: route, detourSuggestion, isDetourRoute: isDetour })
     }
   },
 
@@ -435,17 +464,41 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   switchToDetourRoute: () => {
-    const { activeRoute, restrictedAreas, riders, selectedRiderId } = get()
-    if (!activeRoute || activeRoute.length < 2) return
+    const { activeRoute, originalRoute, restrictedAreas, riders, selectedRiderId, selectedMerchantId, orders, merchants } = get()
+    if (!activeRoute || activeRoute.length < 3) return
 
-    const rider = riders.find((r) => r.id === selectedRiderId)
-    if (!rider || !rider.inRestrictedArea) return
+    let rider = riders.find((r) => r.id === selectedRiderId)
+    let merchant = selectedMerchantId
+      ? merchants.find((m) => m.id === selectedMerchantId)
+      : null
 
-    const area = isPointInRestricted(rider.position.x, rider.position.z, restrictedAreas)
+    if (!merchant && rider?.currentOrderId) {
+      const order = orders.find((o) => o.id === rider.currentOrderId)
+      merchant = merchants.find((m) => m.id === order?.merchantId)
+    }
+
+    if (!rider && selectedMerchantId) {
+      const order = orders.find((o) => o.merchantId === selectedMerchantId && (o.status === 'delivering' || o.status === 'pending'))
+      if (order?.riderId) {
+        rider = riders.find((r) => r.id === order.riderId)
+      }
+    }
+
+    if (!rider || !merchant) return
+
+    const riderArea = rider.inRestrictedArea
+      ? isPointInRestricted(rider.position.x, rider.position.z, restrictedAreas)
+      : null
+    const merchantArea = isPointInRestricted(merchant.position.x, merchant.position.z, restrictedAreas)
+    const area = riderArea || merchantArea
+
     if (!area) return
 
-    const merchant = get().merchants.find((m) => m.id === get().orders.find((o) => o.id === rider.currentOrderId)?.merchantId)
-    if (!merchant) return
+    const userDest = orders.find((o) => o.merchantId === merchant.id && (o.status === 'delivering' || o.status === 'pending'))?.userPosition || {
+      x: merchant.position.x + 15,
+      y: 0,
+      z: merchant.position.z + 10,
+    }
 
     const detour = buildDetourRoute(
       { x: rider.position.x, z: rider.position.z },
@@ -453,26 +506,52 @@ export const useAppStore = create<AppState>((set, get) => ({
       area,
     )
 
-    const nearestLocker = findNearestLocker(merchant.position, get().lockers)
-    const fullRoute = [...detour, { x: nearestLocker.position.x, z: nearestLocker.position.z }]
+    const fullRoute = [...detour, { x: userDest.x, z: userDest.z }]
+
+    if (!get().originalRoute) {
+      set({ originalRoute: activeRoute })
+    }
 
     set({ activeRoute: fullRoute, isDetourRoute: true })
   },
 
   switchToOriginalRoute: () => {
-    const { selectedRiderId, riders, merchants, orders, lockers } = get()
-    const rider = riders.find((r) => r.id === selectedRiderId)
-    if (!rider) return
+    const { originalRoute, selectedRiderId, selectedMerchantId, riders, merchants, orders } = get()
 
-    const order = orders.find((o) => o.id === rider.currentOrderId)
-    const merchant = merchants.find((m) => m.id === order?.merchantId)
-    if (!merchant) return
+    if (originalRoute && originalRoute.length >= 3) {
+      set({ activeRoute: originalRoute, isDetourRoute: false, detourSuggestion: null })
+      return
+    }
 
-    const nearestLocker = findNearestLocker(merchant.position, lockers)
+    let rider = riders.find((r) => r.id === selectedRiderId)
+    let merchant = selectedMerchantId
+      ? merchants.find((m) => m.id === selectedMerchantId)
+      : null
+
+    if (!merchant && rider?.currentOrderId) {
+      const order = orders.find((o) => o.id === rider.currentOrderId)
+      merchant = merchants.find((m) => m.id === order?.merchantId)
+    }
+
+    if (!rider && selectedMerchantId) {
+      const order = orders.find((o) => o.merchantId === selectedMerchantId && (o.status === 'delivering' || o.status === 'pending'))
+      if (order?.riderId) {
+        rider = riders.find((r) => r.id === order.riderId)
+      }
+    }
+
+    if (!rider || !merchant) return
+
+    const userDest = orders.find((o) => o.merchantId === merchant.id && (o.status === 'delivering' || o.status === 'pending'))?.userPosition || {
+      x: merchant.position.x + 15,
+      y: 0,
+      z: merchant.position.z + 10,
+    }
+
     const route: RoutePoint[] = [
       { x: rider.position.x, z: rider.position.z },
       { x: merchant.position.x, z: merchant.position.z },
-      { x: nearestLocker.position.x, z: nearestLocker.position.z },
+      { x: userDest.x, z: userDest.z },
     ]
 
     set({ activeRoute: route, isDetourRoute: false, detourSuggestion: null })

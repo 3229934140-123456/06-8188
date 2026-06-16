@@ -5,6 +5,8 @@ export interface User {
   name: string
   role: UserRole
   avatar?: string
+  merchantId?: string
+  riderId?: string
 }
 
 export interface LoginLog {
@@ -74,6 +76,7 @@ export interface Order {
   merchantName: string
   userAddress: string
   userPhone: string
+  userPosition: Position
   status: OrderStatus
   createdAt: string
   estimatedTime: number
@@ -99,7 +102,7 @@ export interface Locker {
   address: string
 }
 
-export type LockerCellStatus = 'empty' | 'occupied' | 'overtime'
+export type LockerCellStatus = 'empty' | 'occupied' | 'overtime' | 'redelivering'
 
 export interface LockerCell {
   id: string
@@ -108,6 +111,9 @@ export interface LockerCell {
   orderNo?: string
   storedAt?: string
   overtimeMinutes?: number
+  userNotified?: boolean
+  redeliveryPlan?: string
+  redeliveryRiderId?: string
 }
 
 export type IncidentType = 'foreign_object' | 'hygiene' | 'temperature'
