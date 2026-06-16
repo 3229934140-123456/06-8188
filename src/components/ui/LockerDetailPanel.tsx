@@ -1,4 +1,4 @@
-import { X, MapPin, Clock, Package, AlertTriangle, RefreshCw } from 'lucide-react'
+import { X, MapPin, Clock, Package, AlertTriangle, RefreshCw, Bell, FileText } from 'lucide-react'
 import { useAppStore } from '@/store/useAppStore'
 import { useMemo } from 'react'
 import type { LockerCellStatus } from '@/types'
@@ -13,13 +13,15 @@ export function LockerDetailPanel() {
     empty: { bg: 'bg-slate-700', border: 'border-slate-600', label: '空闲' },
     occupied: { bg: 'bg-green-500/60', border: 'border-green-500', label: '占用' },
     overtime: { bg: 'bg-yellow-500/60', border: 'border-yellow-500', label: '超时' },
+    redelivering: { bg: 'bg-cyan-500/60', border: 'border-cyan-500', label: '二次配送中' },
   }
 
   const stats = useMemo(() => {
     const empty = cells.filter((c) => c.status === 'empty').length
     const occupied = cells.filter((c) => c.status === 'occupied').length
     const overtime = cells.filter((c) => c.status === 'overtime').length
-    return { empty, occupied, overtime }
+    const redelivering = cells.filter((c) => c.status === 'redelivering').length
+    return { empty, occupied, overtime, redelivering }
   }, [cells])
 
   if (!locker) return null
@@ -49,7 +51,7 @@ export function LockerDetailPanel() {
               <span>{locker.address}</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className="grid grid-cols-4 gap-2 mt-4">
               <div className="p-2 rounded-lg bg-slate-800/50 text-center">
                 <div className="text-xl font-bold text-white">{locker.totalCells}</div>
                 <div className="text-xs text-slate-400">总格口</div>
@@ -61,6 +63,10 @@ export function LockerDetailPanel() {
               <div className="p-2 rounded-lg bg-slate-800/50 text-center">
                 <div className="text-xl font-bold text-yellow-400">{stats.overtime}</div>
                 <div className="text-xs text-slate-400">超时</div>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-800/50 text-center">
+                <div className="text-xl font-bold text-cyan-400">{stats.redelivering}</div>
+                <div className="text-xs text-slate-400">配送中</div>
               </div>
             </div>
           </div>
@@ -84,6 +90,9 @@ export function LockerDetailPanel() {
                     {cell.status === 'overtime' && (
                       <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                     )}
+                    {cell.status === 'redelivering' && (
+                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+                    )}
 
                     {cell.status !== 'empty' && (
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-slate-800 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 border border-slate-600">
@@ -94,6 +103,9 @@ export function LockerDetailPanel() {
                             超时 {cell.overtimeMinutes} 分钟
                           </div>
                         )}
+                        {cell.userNotified && (
+                          <div className="text-cyan-400 mt-1">已通知用户</div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -102,24 +114,28 @@ export function LockerDetailPanel() {
             </div>
           </div>
 
-          {stats.overtime > 0 && (
+          {(stats.overtime > 0 || stats.redelivering > 0) && (
             <div className="p-4 border-t border-slate-700/30">
               <div className="flex items-center gap-2 mb-3">
                 <AlertTriangle className="w-4 h-4 text-yellow-400" />
-                <h3 className="text-white font-medium">超时订单</h3>
+                <h3 className="text-white font-medium">超时与二次配送</h3>
                 <span className="ml-auto px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-xs font-bold">
-                  {stats.overtime} 单
+                  {stats.overtime + stats.redelivering} 单
                 </span>
               </div>
 
               <div className="space-y-2">
                 {cells
-                  .filter((c) => c.status === 'overtime')
-                  .slice(0, 3)
+                  .filter((c) => c.status === 'overtime' || c.status === 'redelivering')
+                  .slice(0, 5)
                   .map((cell) => (
                     <div
                       key={cell.id}
-                      className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30"
+                      className={`p-3 rounded-lg border ${
+                        cell.status === 'redelivering'
+                          ? 'bg-cyan-500/10 border-cyan-500/30'
+                          : 'bg-yellow-500/10 border-yellow-500/30'
+                      }`}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -127,23 +143,47 @@ export function LockerDetailPanel() {
                           <div className="text-white text-sm font-mono">{cell.orderNo}</div>
                         </div>
                         <div className="text-right">
-                          <div className="text-yellow-400 font-bold text-sm">
-                            {cell.overtimeMinutes}分钟
-                          </div>
-                          <div className="text-xs text-slate-400">已超时</div>
+                          {cell.status === 'overtime' && (
+                            <>
+                              <div className="text-yellow-400 font-bold text-sm">
+                                {cell.overtimeMinutes}分钟
+                              </div>
+                              <div className="text-xs text-slate-400">已超时</div>
+                            </>
+                          )}
+                          {cell.status === 'redelivering' && (
+                            <>
+                              <div className="text-cyan-400 font-bold text-sm">配送中</div>
+                              <div className="text-xs text-slate-400">二次配送</div>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mt-2">
                         <Clock className="w-3 h-3 text-slate-500" />
                         <span className="text-xs text-slate-400">存入: {cell.storedAt?.split(' ')[1]}</span>
                       </div>
-                      <button
-                        onClick={() => handleRedeliver(cell.id)}
-                        className="w-full mt-2 py-1.5 rounded bg-cyan-500/20 text-cyan-400 text-xs font-medium hover:bg-cyan-500/30 transition-colors flex items-center justify-center gap-1"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        二次配送
-                      </button>
+                      {cell.userNotified && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Bell className="w-3 h-3 text-cyan-400" />
+                          <span className="text-xs text-cyan-400">已通知用户取餐超时</span>
+                        </div>
+                      )}
+                      {cell.redeliveryPlan && (
+                        <div className="flex items-start gap-2 mt-1">
+                          <FileText className="w-3 h-3 text-orange-400 mt-0.5" />
+                          <span className="text-xs text-orange-300">{cell.redeliveryPlan}</span>
+                        </div>
+                      )}
+                      {cell.status === 'overtime' && (
+                        <button
+                          onClick={() => handleRedeliver(cell.id)}
+                          className="w-full mt-2 py-1.5 rounded bg-cyan-500/20 text-cyan-400 text-xs font-medium hover:bg-cyan-500/30 transition-colors flex items-center justify-center gap-1"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          发起二次配送
+                        </button>
+                      )}
                     </div>
                   ))}
               </div>

@@ -99,7 +99,7 @@ export interface Locker {
   address: string
 }
 
-export type LockerCellStatus = 'empty' | 'occupied' | 'overtime'
+export type LockerCellStatus = 'empty' | 'occupied' | 'overtime' | 'redelivering'
 
 export interface LockerCell {
   id: string
@@ -108,6 +108,9 @@ export interface LockerCell {
   orderNo?: string
   storedAt?: string
   overtimeMinutes?: number
+  userNotified?: boolean
+  redeliveryPlan?: string
+  redeliveryRiderId?: string
 }
 
 export type IncidentType = 'foreign_object' | 'hygiene' | 'temperature'

@@ -10,8 +10,8 @@ import { LockerDetailPanel } from '@/components/ui/LockerDetailPanel'
 import { AlertBar } from '@/components/ui/AlertBar'
 import { FoodSafetyModal } from '@/components/ui/FoodSafetyModal'
 import { useAppStore } from '@/store/useAppStore'
-import { BarChart3, FileSpreadsheet, Shield, LayoutDashboard } from 'lucide-react'
-import { useState } from 'react'
+import { BarChart3, FileSpreadsheet, Shield, LayoutDashboard, Navigation, AlertTriangle, X } from 'lucide-react'
+import { useState, useEffect as useEff } from 'react'
 import { exportDeliveryStats } from '@/utils/exportExcel'
 import {
   LineChart,
@@ -27,7 +27,19 @@ import {
 
 export function Dashboard() {
   const navigate = useNavigate()
-  const { isLoggedIn, dailyStats, showMerchantDetail, showRiderDetail, showLockerDetail } = useAppStore()
+  const {
+    isLoggedIn,
+    dailyStats,
+    showMerchantDetail,
+    showRiderDetail,
+    showLockerDetail,
+    detourSuggestion,
+    isDetourRoute,
+    currentUser,
+    checkLockerOvertime,
+    switchToDetourRoute,
+    switchToOriginalRoute,
+  } = useAppStore()
   const [showStats, setShowStats] = useState(false)
   const [activeTab, setActiveTab] = useState<'delivery' | 'safety'>('delivery')
 
@@ -36,6 +48,14 @@ export function Dashboard() {
       navigate('/login')
     }
   }, [isLoggedIn, navigate])
+
+  useEff(() => {
+    const interval = setInterval(() => {
+      checkLockerOvertime()
+    }, 10000)
+    checkLockerOvertime()
+    return () => clearInterval(interval)
+  }, [checkLockerOvertime])
 
   const handleExport = () => {
     const startDate = dailyStats[0]?.date || ''
@@ -65,6 +85,48 @@ export function Dashboard() {
 
       <FoodSafetyModal />
 
+      {detourSuggestion && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 animate-in slide-in-from-top duration-300">
+          <div className="flex items-start gap-3 px-5 py-4 rounded-xl bg-red-900/90 backdrop-blur-md border border-red-500/50 shadow-2xl max-w-lg">
+            <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5 animate-pulse" />
+            <div className="flex-1">
+              <h3 className="text-red-300 font-bold text-sm">限行区域预警</h3>
+              <p className="text-red-200/90 text-sm mt-1">{detourSuggestion}</p>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={switchToDetourRoute}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                    isDetourRoute
+                      ? 'bg-orange-500/30 text-orange-300 border border-orange-500/50'
+                      : 'bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-600/50'
+                  }`}
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  绕行方案
+                </button>
+                <button
+                  onClick={switchToOriginalRoute}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                    !isDetourRoute
+                      ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50'
+                      : 'bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-600/50'
+                  }`}
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  原路线
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => useAppStore.setState({ detourSuggestion: null })}
+              className="p-1 rounded hover:bg-red-800/50 transition-colors"
+            >
+              <X className="w-4 h-4 text-red-400" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-2">
         <button
           onClick={() => setShowStats(!showStats)}
@@ -73,13 +135,15 @@ export function Dashboard() {
           <BarChart3 className="w-5 h-5 text-cyan-400" />
           <span className="text-sm font-medium">数据统计</span>
         </button>
-        <button
-          onClick={handleExport}
-          className="px-4 py-2.5 rounded-xl bg-slate-900/90 backdrop-blur-md border border-slate-700/50 text-white hover:bg-slate-800/90 transition-all flex items-center gap-2 shadow-lg"
-        >
-          <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
-          <span className="text-sm font-medium">导出Excel</span>
-        </button>
+        {(currentUser?.role === 'admin' || currentUser?.role === 'merchant') && (
+          <button
+            onClick={handleExport}
+            className="px-4 py-2.5 rounded-xl bg-slate-900/90 backdrop-blur-md border border-slate-700/50 text-white hover:bg-slate-800/90 transition-all flex items-center gap-2 shadow-lg"
+          >
+            <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
+            <span className="text-sm font-medium">导出Excel</span>
+          </button>
+        )}
         <button
           onClick={() => {
             const { setShowFoodSafetyModal } = useAppStore.getState()
@@ -88,7 +152,9 @@ export function Dashboard() {
           className="px-4 py-2.5 rounded-xl bg-slate-900/90 backdrop-blur-md border border-slate-700/50 text-white hover:bg-slate-800/90 transition-all flex items-center gap-2 shadow-lg"
         >
           <Shield className="w-5 h-5 text-red-400" />
-          <span className="text-sm font-medium">食品安全</span>
+          <span className="text-sm font-medium">
+            {currentUser?.role === 'merchant' ? '整改提交' : currentUser?.role === 'rider' ? '安全公告' : '食品安全'}
+          </span>
         </button>
       </div>
 

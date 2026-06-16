@@ -364,15 +364,24 @@ const generateLockerCells = (lockerId: string, total: number, occupied: number, 
     let orderNo: string | undefined
     let storedAt: string | undefined
     let overtimeMinutes: number | undefined
+    let userNotified: boolean | undefined
+    let redeliveryPlan: string | undefined
 
     if (i <= occupied) {
       status = 'occupied'
       orderNo = `DD${lockerId}${String(i).padStart(4, '0')}`
-      storedAt = '2024-01-15 12:00:00'
+      const now = new Date()
+      const stored = new Date(now.getTime() - (15 + i * 3) * 60000)
+      storedAt = stored.toISOString().replace('T', ' ').slice(0, 19)
     }
     if (i <= overtime) {
       status = 'overtime'
       overtimeMinutes = 35 + i * 5
+      userNotified = true
+      redeliveryPlan = `已通知用户取餐超时${35 + i * 5}分钟，生成二次配送预案：指派最近空闲骑手从取餐柜取餐后送达用户地址`
+      const now = new Date()
+      const stored = new Date(now.getTime() - (35 + i * 5) * 60000)
+      storedAt = stored.toISOString().replace('T', ' ').slice(0, 19)
     }
 
     cells.push({
@@ -382,6 +391,8 @@ const generateLockerCells = (lockerId: string, total: number, occupied: number, 
       orderNo,
       storedAt,
       overtimeMinutes,
+      userNotified,
+      redeliveryPlan,
     })
   }
   return cells
@@ -403,9 +414,9 @@ export const mockIncidents: FoodSafetyIncident[] = [
     type: 'foreign_object',
     level: 'serious',
     detectedAt: '2024-01-15 10:30:00',
-    status: 'rectifying',
+    status: 'reviewing',
     description: '后厨操作台检测到疑似毛发异物',
-    rectifyDescription: '已清洁操作台并更换厨师帽',
+    rectifyDescription: '已清洁操作台并更换厨师帽，加强后厨卫生管理制度',
   },
   {
     id: 'inc2',
@@ -435,10 +446,9 @@ export const mockIncidents: FoodSafetyIncident[] = [
     type: 'foreign_object',
     level: 'critical',
     detectedAt: '2024-01-14 14:20:00',
-    status: 'resolved',
+    status: 'rectifying',
     description: '食材中检测到塑料碎片',
-    rectifyDescription: '已全部更换食材供应商，加强验收检查',
-    reviewComment: '整改认真，通过审核',
+    reviewComment: '整改措施不够彻底，需要重新整改',
   },
 ]
 

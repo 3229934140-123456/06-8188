@@ -97,16 +97,19 @@ export function MerchantMarker({ merchant }: MerchantMarkerProps) {
           <div className="font-bold text-cyan-300">{merchant.name}</div>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs">订单: {merchant.realtimeOrders}</span>
+            <span className="text-xs text-yellow-300">出餐: {merchant.avgCookTime}分钟</span>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
             <span
               className="rounded px-1.5 py-0.5 text-xs font-bold"
               style={{ backgroundColor: levelColors[merchant.foodSafetyLevel] + '40', color: levelColors[merchant.foodSafetyLevel] }}
             >
               {merchant.foodSafetyLevel}级
             </span>
+            {merchant.isPaused && (
+              <span className="text-red-400 text-xs font-bold">已暂停</span>
+            )}
           </div>
-          {merchant.isPaused && (
-            <div className="text-red-400 text-xs mt-1 font-bold">已暂停接单</div>
-          )}
         </div>
       </Html>
     </group>
